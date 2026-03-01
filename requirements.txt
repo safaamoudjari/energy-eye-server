@@ -1,4 +1,5 @@
-flask==2.3.2
-requests==2.32.0
-python-dotenv==1.0.0
-
+fastapi
+uvicorn
+gunicorn
+requests
+python-multipart
