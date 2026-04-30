@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, File, UploadFile
 import httpx
 import os
 
@@ -8,14 +8,21 @@ MODEL_URL = "https://detect.roboflow.com/meter-digits-u17oj/4"
 ROBOFLOW_API_KEY = os.getenv("ROBOFLOW_API_KEY")
 
 
-@app.post("/predict")
-async def predict(request: Request):
+@app.get("/")
+def home():
+    return {"message": "Server is running 🚀"}
 
-    image_bytes = await request.body()
+
+@app.post("/predict")
+async def predict(file: UploadFile = File(...)):
+
+    # 1️⃣ قراءة الصورة
+    image_bytes = await file.read()
 
     if not image_bytes:
         return {"error": "Empty image received"}
 
+    # 2️⃣ إرسال إلى Roboflow
     async with httpx.AsyncClient(timeout=30) as client:
         response = await client.post(
             MODEL_URL,
@@ -36,8 +43,10 @@ async def predict(request: Request):
     result = response.json()
     predictions = result.get("predictions", [])
 
+    # 3️⃣ ترتيب الأرقام من اليسار لليمين
     predictions_sorted = sorted(predictions, key=lambda p: float(p.get("x", 0)))
 
+    # 4️⃣ استخراج الأرقام
     digits = [
         str(p["class"])
         for p in predictions_sorted
