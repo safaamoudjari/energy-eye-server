@@ -67,4 +67,3 @@ async def predict(file: UploadFile = File(...)):
         "avg_confidence": avg_conf,
         "num_predictions": len(predictions)
     }
-
