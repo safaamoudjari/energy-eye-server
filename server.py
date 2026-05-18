@@ -1,9 +1,14 @@
 from fastapi import FastAPI, File, UploadFile
 import httpx
 import os
-
+from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI()
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # or replace * with your exact website URL
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 #  Roboflow model
 MODEL_URL = "https://detect.roboflow.com/meter-digits-u17oj/4"
 ROBOFLOW_API_KEY = os.getenv("ROBOFLOW_API_KEY")
