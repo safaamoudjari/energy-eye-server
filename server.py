@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, Request
 import httpx
 import os
 from fastapi.middleware.cors import CORSMiddleware
@@ -29,17 +29,15 @@ def home():
 
 #  ESP32 sends image here
 @app.post("/predict")
-async def predict(file: UploadFile = File(...)):
+async def predict(request: Request):
 
     global latest_result
 
-    # 1️ Read image from ESP32
-    image_bytes = await file.read()
+    image_bytes = await request.body()
 
     if not image_bytes:
-        return {"error": "Empty image received"}
+        return {"error": "Empty image"}
 
-    # 2️ Send image to Roboflow AI
     async with httpx.AsyncClient(timeout=30) as client:
         response = await client.post(
             MODEL_URL,
@@ -48,26 +46,19 @@ async def predict(file: UploadFile = File(...)):
                 "confidence": 0.10,
                 "overlap": 0.30
             },
-            files={"file": ("image.jpg", image_bytes, "image/jpeg")}
+            content=image_bytes,
+            headers={"Content-Type": "image/jpeg"}
         )
 
-    # 3️ Handle API failure
-    if response.status_code != 200:
-        return {
-            "error": "Roboflow failed",
-            "text": response.text
-        }
-
     result = response.json()
+
     predictions = result.get("predictions", [])
 
-    # 4️ Sort digits left → right
     predictions_sorted = sorted(
         predictions,
         key=lambda p: float(p.get("x", 0))
     )
 
-    # 5️ Extract digits + confidence
     digits = [
         str(p["class"])
         for p in predictions_sorted
@@ -81,16 +72,18 @@ async def predict(file: UploadFile = File(...)):
     ]
 
     reading = "".join(digits)
-    avg_conf = sum(confidences) / len(confidences) if confidences else 0
 
-    # 6️ STORE RESULT FOR WEBSITE
+    avg_conf = (
+        sum(confidences) / len(confidences)
+        if confidences else 0
+    )
+
     latest_result = {
         "reading": reading,
         "avg_confidence": avg_conf,
         "num_predictions": len(predictions)
     }
 
-    # 7️ RETURN RESULT TO ESP32
     return latest_result
 
 
